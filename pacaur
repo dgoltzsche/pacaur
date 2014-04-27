@@ -180,7 +180,7 @@ DownloadPkgs() {
             [[ -n "$(grep 'CARCH' "$builddir/$i/PKGBUILD")" ]] && note "e" $"${colorW}CARCH${reset} variable detected in ${colorW}$i${reset}. Enable the full bash dependency solver with the --insecure option."
         done
     else
-        [[ $operation != download ]] && note "i" $"resolving dependencies..."
+        [[ $operation != download && $count -lt 2 ]] && note "i" $"resolving dependencies..."
         allaurdeps+=("${aurpkgs[@]}")
         FindPkgsDeps ${aurpkgs[@]}
         deps=("${allaurdeps[@]}")
@@ -216,6 +216,7 @@ FindPkgsDeps() {
     coweropts+=("--ignorerepo")
     DownloadAur ${depspkgsaur[@]}
     [[ $operation = download && $count -lt 2 ]] && return
+    [[ $operation != download && $count -ge 2 ]] && return
 
     # source pkgs
     for i in "${deps[@]}"; do
@@ -229,6 +230,12 @@ FindPkgsDeps() {
     # split binary and AUR depends pkgs
     unset deps depends makedepends sourcedpkgs depspkgsaur
     if [[ -n "${depspkgs[@]}" ]]; then
+        # remove package versioning
+        if [[ $operation != download && $count -eq 1 ]]; then
+            for ((i=0; i<${#depspkgs[@]}; i++)); do
+                depspkgs[$i]=$(awk -F ">|<|=" '{print $1}' <<< ${depspkgs[$i]})
+            done
+        fi
         depspkgsaur=($($pacmanbin -Sp "${depspkgs[@]}" 2>&1 >/dev/null | awk -F " " '{print $5}'))
         depspkgs=($(echo "${depspkgs[@]}" | tr ' ' '\n' | LC_COLLATE=C sort -u))
         depspkgsaur=($(echo "${depspkgsaur[@]}" | tr ' ' '\n' | LC_COLLATE=C sort -u))
@@ -1031,7 +1038,8 @@ while [[ -n "${!OPTIND}" ]]; do
                 [[ $pac || $pacQ || $pacS ]] && continue || operation=search; coweropts+=("-s"); aur='1';;
             i)  [[ $pacS ]] && operation=info && coweropts+=("-i");
                 [[ $pac || $pacQ || $pacS ]] && continue || operation=info; coweropts+=("-i"); aur='1';;
-            d)  [[ $pac || $pacQ || $pacS ]] && continue || operation=download; ((count++));;
+            d)  [[ $pacS ]] && pacopts+=("--nodeps") && makeopts+=("--nodeps") && ((count++));
+                [[ $pac || $pacQ || $pacS ]] && continue || operation=download; ((count++));;
             m)  [[ $pac || $pacQ || $pacS ]] && continue || operation=sync; coweropts+=("-f"); aur='1';;
             y)  [[ $pacS ]] && operation=sync && refresh=true;
                 [[ $pac || $pacQ || $pacS ]] && continue || operation=sync; installpkg=true; coweropts+=("-f"); aur='1';;
