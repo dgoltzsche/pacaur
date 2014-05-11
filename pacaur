@@ -184,13 +184,13 @@ DownloadPkgs() {
         allaurdeps+=("${aurpkgs[@]}")
         FindPkgsDeps ${aurpkgs[@]}
         deps=("${allaurdeps[@]}")
-
-        # reduce root binary deps
-        repodeps=($(tr ' ' '\n' <<< ${repodeps[@]} | sort -u))
     fi
 
     # return AUR deps pkgs only
     aurdepspkgs=(${deps[@]:${#aurpkgs[@]}:${#deps[@]}})
+
+    # reduce root binary deps
+    repodeps=($(tr ' ' '\n' <<< ${repodeps[@]} | sort -u))
 
     # return binary providers
     if [[ $operation = download && $count -ge 2 ]]; then
